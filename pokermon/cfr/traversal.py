@@ -205,6 +205,124 @@ _KUHN_INFOSETS = [
 KUHN_FEATURE_DIM = len(_KUHN_INFOSETS)
 
 
+def traverse_leduc(
+    state,
+    traverser: int,
+    advantage_nets: list,
+    iteration: int,
+    advantage_memory: list,
+    strategy_memory,
+    device: torch.device = torch.device("cpu"),
+    rng: np.random.RandomState | None = None,
+) -> float:
+    """Simplified traversal for Leduc Hold'em (Deep CFR validation).
+
+    Uses the Leduc game interface directly.
+    """
+    if rng is None:
+        rng = np.random.RandomState()
+
+    if state.is_terminal:
+        return state.payoff(traverser)
+
+    current = state.current_player
+    actions = state.legal_actions()
+    num_actions = len(actions)
+    action_indices = [int(a) for a in actions]
+
+    info_set = state.info_set
+    features = _leduc_infoset_to_features(info_set)
+
+    with torch.no_grad():
+        x = torch.tensor(features, dtype=torch.float32, device=device).unsqueeze(0)
+        all_advantages = advantage_nets[current](x).squeeze(0).cpu().numpy()
+
+    # Extract advantages at actual action positions (not positional slicing)
+    advantages = all_advantages[action_indices]
+    strategy = regret_match_masked(
+        advantages, np.ones(num_actions, dtype=np.float32)
+    )
+
+    if current == traverser:
+        action_utils = np.zeros(num_actions, dtype=np.float64)
+        for i, action in enumerate(actions):
+            next_state = state.apply(action)
+            action_utils[i] = traverse_leduc(
+                next_state, traverser, advantage_nets, iteration,
+                advantage_memory, strategy_memory, device, rng,
+            )
+
+        node_value = np.sum(strategy * action_utils)
+        regrets = np.zeros(num_actions, dtype=np.float32)
+        for i in range(num_actions):
+            regrets[i] = action_utils[i] - node_value
+
+        weight = max(iteration, 1) ** 1.5
+        padded_regrets = np.zeros(advantage_memory[traverser].target_dim, dtype=np.float32)
+        for i, a_idx in enumerate(action_indices):
+            padded_regrets[a_idx] = regrets[i]
+        advantage_memory[traverser].add(features, padded_regrets, weight)
+
+        return node_value
+    else:
+        chosen_idx = rng.choice(num_actions, p=strategy)
+        chosen_action = actions[chosen_idx]
+
+        weight = max(iteration, 1) ** 1.5
+        padded_strategy = np.zeros(strategy_memory.target_dim, dtype=np.float32)
+        for i, a_idx in enumerate(action_indices):
+            padded_strategy[a_idx] = strategy[i]
+        strategy_memory.add(features, padded_strategy, weight)
+
+        next_state = state.apply(chosen_action)
+        return traverse_leduc(
+            next_state, traverser, advantage_nets, iteration,
+            advantage_memory, strategy_memory, device, rng,
+        )
+
+
+# Leduc info set feature encoding
+# Layout: private_rank(3) + community_rank(3) + pair(1) + round(2) + round0_actions(12) + round1_actions(12) = 33
+_LEDUC_RANK_MAP = {"J": 0, "Q": 1, "K": 2}
+_LEDUC_ACTION_MAP = {"f": 0, "c": 1, "r": 2}
+LEDUC_FEATURE_DIM = 33
+
+
+def _leduc_infoset_to_features(info_set: str) -> np.ndarray:
+    """Convert Leduc info set string to feature vector."""
+    features = np.zeros(LEDUC_FEATURE_DIM, dtype=np.float32)
+
+    card_part, history_part = info_set.split(":")
+
+    # Private card rank (3 dims one-hot)
+    private_rank = _LEDUC_RANK_MAP[card_part[0]]
+    features[private_rank] = 1.0
+
+    # Community card rank (3 dims one-hot) — only present after preflop
+    if len(card_part) > 1:
+        comm_rank = _LEDUC_RANK_MAP[card_part[1]]
+        features[3 + comm_rank] = 1.0
+        # Pair indicator
+        if private_rank == comm_rank:
+            features[6] = 1.0
+
+    # Round indicator (2 dims)
+    rounds = history_part.split("|") if history_part else [""]
+    round_idx = len(rounds) - 1
+    if round_idx < 2:
+        features[7 + round_idx] = 1.0
+
+    # Action history: separate encoding per round (4 slots × 3 actions × 2 rounds = 24 dims)
+    for r, round_h in enumerate(rounds):
+        if r >= 2:
+            break
+        for j, ch in enumerate(round_h):
+            if j < 4 and ch in _LEDUC_ACTION_MAP:
+                features[9 + r * 12 + j * 3 + _LEDUC_ACTION_MAP[ch]] = 1.0
+
+    return features
+
+
 def _kuhn_infoset_to_features(info_set: str) -> np.ndarray:
     """Convert Kuhn info set to one-hot feature vector."""
     features = np.zeros(KUHN_FEATURE_DIM, dtype=np.float32)

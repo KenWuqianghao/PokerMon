@@ -62,8 +62,11 @@ class TabularCFR:
         info_set = state.info_set
         actions = state.legal_actions()
         n_actions = len(actions)
+        action_indices = [int(a) for a in actions]
 
-        strategy = self.get_strategy(info_set)[:n_actions]
+        # Get strategy using actual action indices (not positional slicing)
+        raw_strategy = self.get_strategy(info_set)
+        strategy = raw_strategy[action_indices]
         total = strategy.sum()
         if total > 0:
             strategy = strategy / total
@@ -71,7 +74,8 @@ class TabularCFR:
             strategy = np.ones(n_actions, dtype=np.float64) / n_actions
 
         # Accumulate weighted strategy for average computation
-        self.strategy_sum[info_set][:n_actions] += reach_probs[player] * strategy
+        for i, a_idx in enumerate(action_indices):
+            self.strategy_sum[info_set][a_idx] += reach_probs[player] * strategy[i]
 
         # Compute utility for each action
         action_utils = np.zeros((n_actions, 2), dtype=np.float64)
@@ -84,14 +88,11 @@ class TabularCFR:
             action_utils[i] = self.cfr(next_state, new_reach)
             node_util += strategy[i] * action_utils[i]
 
-        # Compute and accumulate regrets
+        # Compute and accumulate regrets using actual action indices
         opponent = 1 - player
-        for i in range(n_actions):
+        for i, a_idx in enumerate(action_indices):
             regret = action_utils[i][player] - node_util[player]
-            self.regret_sum[info_set][i] += reach_probs[opponent] * regret
-
-        # CFR+: floor negative regrets to zero
-        self.regret_sum[info_set] = np.maximum(self.regret_sum[info_set], 0)
+            self.regret_sum[info_set][a_idx] += reach_probs[opponent] * regret
 
         return node_util
 
@@ -114,6 +115,9 @@ class TabularCFR:
                 reach = np.ones(2, dtype=np.float64)
                 util = self.cfr(state, reach)
                 total_value += util[0]
+            # CFR+: floor negative regrets to zero (once per iteration)
+            for info_set in self.regret_sum:
+                self.regret_sum[info_set] = np.maximum(self.regret_sum[info_set], 0)
             game_values.append(total_value / len(all_deals))
             self.iterations += 1
 

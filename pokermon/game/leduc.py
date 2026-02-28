@@ -78,7 +78,7 @@ class LeducState:
         my_card = self.card_rank(self.cards[player])
         card_str = "JQK"[my_card]
 
-        if self.cards[2] >= 0:
+        if self.current_round > 0 and self.cards[2] >= 0:
             comm_rank = self.card_rank(self.cards[2])
             card_str += "JQK"[comm_rank]
 

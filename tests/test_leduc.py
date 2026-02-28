@@ -62,13 +62,19 @@ def test_raises_capped():
 def test_info_sets():
     state = LeducState(cards=(0, 4, 2))
     info = state.info_set
-    # Player 0 has J, community Q, empty history
-    assert info.startswith("JQ:")
+    # Player 0 has J, community Q not yet visible (round 0)
+    assert info.startswith("J:")
 
     s1 = state.apply(LeducAction.CHECK_CALL)
     info1 = s1.info_set
-    # Player 1 has K, community Q, one check
-    assert info1.startswith("KQ:")
+    # Player 1 has K, community Q not yet visible (round 0)
+    assert info1.startswith("K:")
+
+    # After both check, move to round 1 — community card visible
+    s2 = s1.apply(LeducAction.CHECK_CALL)
+    info2 = s2.info_set
+    # Player 0 has J, community Q now visible (round 1)
+    assert info2.startswith("JQ:")
 
 
 def test_zero_sum():
