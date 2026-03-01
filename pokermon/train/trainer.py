@@ -26,7 +26,7 @@ class Trainer:
 
     def __init__(self, config: TrainConfig) -> None:
         self.config = config
-        self.device = torch.device(config.resolve_device())
+        self.device = self._resolve_torch_device(config)
 
         # Networks
         self.advantage_nets = [
@@ -109,6 +109,15 @@ class Trainer:
             self.logger.flush()
 
         self.logger.close()
+
+    @staticmethod
+    def _resolve_torch_device(config: TrainConfig) -> torch.device:
+        """Create torch.device, handling XLA/TPU specially."""
+        device_str = config.resolve_device()
+        if device_str == "xla":
+            import torch_xla.core.xla_model as xm
+            return xm.xla_device()
+        return torch.device(device_str)
 
     def _run_traversals(self, iteration: int, traverser: int) -> None:
         """Run MCCFR traversals for a given player."""

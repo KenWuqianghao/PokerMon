@@ -48,7 +48,7 @@ class TrainConfig:
     log_dir: str = "runs"
 
     # Hardware
-    device: str = "auto"  # auto, cpu, cuda, mps
+    device: str = "auto"  # auto, cpu, cuda, mps, xla
     num_workers: int = 1
 
     # Seed
@@ -76,4 +76,9 @@ class TrainConfig:
             return "cuda"
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
             return "mps"
+        try:
+            import torch_xla.core.xla_model as xm  # noqa: F401
+            return "xla"
+        except ImportError:
+            pass
         return "cpu"

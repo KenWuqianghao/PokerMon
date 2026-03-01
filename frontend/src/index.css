@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+body {
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+}
+
+@keyframes deal-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes card-flip {
+  from {
+    transform: rotateY(180deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+
+.animate-deal-in {
+  animation: deal-in 350ms ease-out both;
+}
+
+.animate-card-flip {
+  animation: card-flip 500ms ease-out both;
+}
+
+@keyframes banner-show {
+  0% { opacity: 0; transform: translateY(8px); }
+  12% { opacity: 1; transform: translateY(0); }
+  82% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(0); }
+}
+
+.animate-banner-show {
+  animation: banner-show 1.7s ease-out forwards;
+}

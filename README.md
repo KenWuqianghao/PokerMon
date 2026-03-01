@@ -57,6 +57,11 @@ python scripts/train_kuhn.py
 python scripts/train_leduc.py --iterations 200
 ```
 
+**Heads-up No-Limit Hold'em** (GPU, e.g. 3070 Ti):
+```bash
+python -c "from pokermon.train.config import TrainConfig; from pokermon.train.trainer import Trainer; t = Trainer(TrainConfig(game='nlhe_hu', num_players=2, small_blind=50, big_blind=100, starting_stack=10000, num_iterations=100, traversals_per_iter=5000, hidden_dim=256, num_layers=4, num_actions=7, advantage_sgd_steps=2000, strategy_sgd_steps=2000, strategy_train_every=5, lr=1e-3, batch_size=2048, buffer_capacity=1000000, checkpoint_dir='checkpoints/nlhe_hu', checkpoint_every=25, log_dir='runs/nlhe_hu', device='cuda', seed=42)); t.train()"
+```
+
 **6-max No-Limit Hold'em** (full game):
 ```bash
 python scripts/train_nlhe.py --config configs/nlhe6.yaml
