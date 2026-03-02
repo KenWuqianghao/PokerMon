@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 import torch
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -198,6 +199,13 @@ def serialize_state(state, game_id: str, hand_num: int) -> dict:
 # ---------------------------------------------------------------------------
 
 app = FastAPI(title="PokerMon")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class NewGameRequest(BaseModel):
