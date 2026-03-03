@@ -174,7 +174,10 @@ class Trainer:
             y = torch.tensor(targets, dtype=torch.float32, device=self.device)
             w = torch.tensor(weights, dtype=torch.float32, device=self.device)
 
-            pred = net(x) if loss_type == "mse" else net(x)
+            # AdvantageNet.forward(x) returns raw values; StrategyNet.forward
+            # applies masked softmax which we don't want during training.
+            # Access the underlying Sequential directly for raw logits.
+            pred = net(x) if loss_type == "mse" else net.net(x)
 
             if loss_type == "mse":
                 loss = (w.unsqueeze(-1) * (pred - y) ** 2).mean()
