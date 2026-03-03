@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -61,11 +63,16 @@ class Trainer:
         # RNG
         self.rng = np.random.RandomState(config.seed)
 
-    def train(self, num_iterations: int | None = None) -> None:
+    def train(
+        self,
+        num_iterations: int | None = None,
+        start_iteration: int = 1,
+        on_checkpoint: Callable[[int], None] | None = None,
+    ) -> None:
         """Run the full Deep CFR training loop."""
         n_iter = num_iterations or self.config.num_iterations
 
-        for t in trange(1, n_iter + 1, desc="Deep CFR NLHE"):
+        for t in trange(start_iteration, n_iter + 1, desc="Deep CFR NLHE"):
             # For each player, run traversals and retrain advantage net
             for p in range(self.config.num_players):
                 self._run_traversals(t, p)
@@ -105,6 +112,8 @@ class Trainer:
                     self.advantage_nets,
                     self.strategy_net,
                 )
+                if on_checkpoint:
+                    on_checkpoint(t)
 
             self.logger.flush()
 
