@@ -51,7 +51,7 @@ def load_checkpoint(
     Returns:
         Dict with 'iteration' and 'metrics'.
     """
-    checkpoint = torch.load(path, weights_only=False)
+    checkpoint = torch.load(path, map_location="cpu", weights_only=False)
 
     for i, state_dict in enumerate(checkpoint["advantage_nets"]):
         if i < len(advantage_nets):
