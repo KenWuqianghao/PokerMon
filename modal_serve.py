@@ -9,7 +9,7 @@ import modal
 
 app = modal.App("pokermon-serve")
 
-COMMIT = "b10c39f"
+COMMIT = "3c9c980"
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
