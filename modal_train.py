@@ -15,7 +15,7 @@ import modal
 
 app = modal.App("pokermon-train")
 
-COMMIT = "b10c39f"
+COMMIT = "a183956"
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -61,9 +61,9 @@ def train():
         checkpoint_dir="/vol/checkpoints/nlhe_hu",
         log_dir="/vol/runs/nlhe_hu",
         num_iterations=500,
-        traversals_per_iter=500,
-        advantage_sgd_steps=2000,
-        strategy_sgd_steps=2000,
+        traversals_per_iter=1500,
+        advantage_sgd_steps=4000,
+        strategy_sgd_steps=4000,
         checkpoint_every=10,
     )
 
