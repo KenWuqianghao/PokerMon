@@ -123,12 +123,30 @@ def fetch_checkpoint():
         return f.read()
 
 
+@app.function(image=image, volumes={"/vol": volume})
+def upload_checkpoint(data: bytes, name: str):
+    """Upload a local checkpoint to the volume (e.g. to seed a new account)."""
+    from pathlib import Path
+
+    dest = Path(f"/vol/checkpoints/nlhe_hu/{name}")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+    volume.commit()
+    print(f"Uploaded {name} ({len(data)} bytes) to volume")
+
+
 @app.local_entrypoint()
-def main(download: bool = False):
+def main(download: bool = False, upload: str = ""):
     if download:
         data = fetch_checkpoint.remote()
         with open("smoke_test.pt", "wb") as f:
             f.write(data)
         print(f"Wrote smoke_test.pt ({len(data)} bytes)")
+    elif upload:
+        with open(upload, "rb") as f:
+            data = f.read()
+        name = upload.split("/")[-1]
+        upload_checkpoint.remote(data, name)
+        print(f"Uploaded {name} to volume")
     else:
         train.remote()
