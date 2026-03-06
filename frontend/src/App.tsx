@@ -7,8 +7,8 @@ import Controls from "./components/Controls";
 import ActionBanner from "./components/ActionBanner";
 import GameLog, { type LogEntry } from "./components/GameLog";
 
-const AI_THINK_MS = 400;
-const BANNER_MS = 1700;
+const AI_THINK_MS = 200;
+const BANNER_MS = 900;
 
 export default function App() {
   const [gameId, setGameId] = useState<string | null>(null);

@@ -233,7 +233,11 @@ def new_game(_req: NewGameRequest | None = None):
 
     # If AI acts first, auto-play
     actions_taken = []
+    _loop_limit = 20
     while not state.is_terminal and state.current_player == AI:
+        _loop_limit -= 1
+        if _loop_limit <= 0:
+            raise HTTPException(status_code=500, detail="AI loop exceeded safety limit")
         action = ai_agent.act(state, AI)
         label = _action_label(action, state)
         amount = _compute_action_amount(action, state)
@@ -273,8 +277,12 @@ def game_action(req: ActionRequest):
     state = apply_action(state, action)
     actions_taken = [{"player": "human", "action": int(action), "label": human_label, "amount": human_amount}]
 
-    # AI auto-play loop
+    # AI auto-play loop (safety limit prevents infinite loops)
+    _ai_loop_limit = 20
     while not state.is_terminal and state.current_player == AI:
+        _ai_loop_limit -= 1
+        if _ai_loop_limit <= 0:
+            raise HTTPException(status_code=500, detail="AI loop exceeded safety limit")
         ai_action = ai_agent.act(state, AI)
         ai_label = _action_label(ai_action, state)
         ai_amount = _compute_action_amount(ai_action, state)
@@ -312,7 +320,11 @@ def deal_again(req: ActionRequest):
     )
 
     actions_taken = []
+    _loop_limit = 20
     while not state.is_terminal and state.current_player == AI:
+        _loop_limit -= 1
+        if _loop_limit <= 0:
+            raise HTTPException(status_code=500, detail="AI loop exceeded safety limit")
         action = ai_agent.act(state, AI)
         label = _action_label(action, state)
         amount = _compute_action_amount(action, state)

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { LegalAction } from "../types";
 
 interface ControlsProps {
@@ -19,6 +20,15 @@ function actionStyle(label: string): string {
   return "bg-zinc-800 hover:bg-zinc-700 text-zinc-200";
 }
 
+// Action codes 2-6 are bet/raise/all-in (0=Fold, 1=Check/Call, 2-5=Bet fractions, 6=All-In)
+function findClosestBetAction(amount: number, actions: LegalAction[]): LegalAction | null {
+  const betActions = actions.filter((a) => a.action >= 2);
+  if (betActions.length === 0) return null;
+  return betActions.reduce((best, a) =>
+    Math.abs(a.amount - amount) < Math.abs(best.amount - amount) ? a : best,
+  );
+}
+
 export default function Controls({
   legalActions,
   onAction,
@@ -29,6 +39,8 @@ export default function Controls({
   result,
   gameOver,
 }: ControlsProps) {
+  const [customAmount, setCustomAmount] = useState("");
+
   if (isTerminal) {
     return (
       <div className="flex items-center gap-4">
@@ -65,25 +77,72 @@ export default function Controls({
     );
   }
 
-  if (!legalActions || disabled) {
+  if (disabled) {
     return (
-      <div className="text-zinc-600 text-sm tracking-wide uppercase">
-        {disabled ? "Waiting..." : "Opponent's turn"}
-      </div>
+      <div className="text-zinc-600 text-sm tracking-wide uppercase">Waiting...</div>
     );
   }
 
+  if (!legalActions) {
+    return (
+      <div className="text-zinc-600 text-sm tracking-wide uppercase">Opponent&apos;s turn</div>
+    );
+  }
+
+  if (legalActions.length === 0) {
+    return (
+      <div className="text-red-500 text-sm">Error: no legal actions. Please refresh.</div>
+    );
+  }
+
+  const parsedAmount = parseInt(customAmount, 10);
+  const closestAction =
+    !isNaN(parsedAmount) && parsedAmount > 0
+      ? findClosestBetAction(parsedAmount, legalActions)
+      : null;
+
   return (
-    <div className="flex gap-2 flex-wrap">
-      {legalActions.map((a) => (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-2 flex-wrap">
+        {legalActions.map((a) => (
+          <button
+            key={a.action}
+            onClick={() => onAction(a.action)}
+            className={`px-4 py-2.5 rounded-lg font-medium text-sm transition-all active:scale-[0.98] hover:scale-[1.02] ${actionStyle(a.label)}`}
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          value={customAmount}
+          onChange={(e) => setCustomAmount(e.target.value)}
+          placeholder="Custom raise..."
+          className="w-36 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 text-sm focus:outline-none focus:border-zinc-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        />
         <button
-          key={a.action}
-          onClick={() => onAction(a.action)}
-          className={`px-4 py-2.5 rounded-lg font-medium text-sm transition-all active:scale-[0.98] hover:scale-[1.02] ${actionStyle(a.label)}`}
+          onClick={() => {
+            if (closestAction) {
+              onAction(closestAction.action);
+              setCustomAmount("");
+            }
+          }}
+          disabled={!closestAction}
+          className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+            closestAction
+              ? "bg-zinc-700 hover:bg-zinc-600 text-zinc-200 active:scale-[0.98] hover:scale-[1.02]"
+              : "bg-zinc-900 text-zinc-600 cursor-not-allowed"
+          }`}
         >
-          {a.label}
+          {closestAction
+            ? closestAction.action === 6
+              ? `All In ${closestAction.amount.toLocaleString()}`
+              : `Raise ${closestAction.amount.toLocaleString()}`
+            : "Raise"}
         </button>
-      ))}
+      </div>
     </div>
   );
 }
