@@ -15,7 +15,7 @@ import modal
 
 app = modal.App("pokermon-train")
 
-COMMIT = "a7a153f"
+COMMIT = "b10c39f"
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
