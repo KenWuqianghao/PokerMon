@@ -25,6 +25,7 @@ def external_sampling_mccfr(
     strategy_memory,  # Single ReservoirBuffer for strategy network
     device: torch.device = torch.device("cpu"),
     rng: np.random.RandomState | None = None,
+    weight_exponent: float = 1.5,
     prune_threshold: float = -3e8,
     prune_after: int = 100,
 ) -> np.ndarray:
@@ -83,7 +84,7 @@ def external_sampling_mccfr(
             action_utils[a] = external_sampling_mccfr(
                 next_state, traverser, advantage_nets, iteration,
                 advantage_memory, strategy_memory, device, rng,
-                prune_threshold, prune_after,
+                weight_exponent, prune_threshold, prune_after,
             )
             explored[a] = True
 
@@ -98,7 +99,7 @@ def external_sampling_mccfr(
                 regrets[a] = action_utils[a] - node_value
 
         # Store in advantage memory with iteration weighting
-        weight = iteration ** 1.5  # Linear CFR weighting
+        weight = iteration ** weight_exponent
         advantage_memory[traverser].add(features, regrets, weight)
 
         return node_value
@@ -111,14 +112,14 @@ def external_sampling_mccfr(
         chosen_action = legal_actions[chosen_idx]
 
         # Store in strategy memory
-        weight = iteration ** 1.5
+        weight = iteration ** weight_exponent
         strategy_memory.add(features, strategy, weight)
 
         next_state = apply_action(state, chosen_action)
         return external_sampling_mccfr(
             next_state, traverser, advantage_nets, iteration,
             advantage_memory, strategy_memory, device, rng,
-            prune_threshold, prune_after,
+            weight_exponent, prune_threshold, prune_after,
         )
 
 

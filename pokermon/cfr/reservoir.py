@@ -26,7 +26,7 @@ class ReservoirBuffer:
 
         self._size = 0
         self._count = 0  # Total samples seen (for reservoir sampling)
-        self._rng = np.random.RandomState(42)
+        self._rng = np.random.RandomState()
 
     @property
     def size(self) -> int:

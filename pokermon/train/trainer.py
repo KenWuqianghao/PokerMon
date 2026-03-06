@@ -129,6 +129,8 @@ class Trainer:
         return torch.device(device_str)
 
     def _run_traversals(self, iteration: int, traverser: int) -> None:
+        for net in self.advantage_nets:
+            net.eval()
         """Run MCCFR traversals for a given player."""
         for _ in range(self.config.traversals_per_iter):
             deck = Deck(seed=self.rng.randint(0, 2**31))
@@ -151,6 +153,7 @@ class Trainer:
                 self.strategy_memory,
                 self.device,
                 self.rng,
+                weight_exponent=self.config.weight_exponent,
                 prune_threshold=self.config.prune_threshold,
                 prune_after=self.config.prune_after,
             )
@@ -164,10 +167,11 @@ class Trainer:
     ) -> float:
         """Train a network on buffered data."""
         optimizer = optim.Adam(net.parameters(), lr=self.config.lr)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=sgd_steps)
         net.train()
         total_loss = 0.0
 
-        for _ in range(sgd_steps):
+        for step in range(sgd_steps):
             features, targets, weights = buffer.sample(self.config.batch_size)
 
             x = torch.tensor(features, dtype=torch.float32, device=self.device)
@@ -186,9 +190,14 @@ class Trainer:
                 log_probs = torch.log_softmax(pred, dim=-1)
                 loss = -(w.unsqueeze(-1) * y * log_probs).sum(dim=-1).mean()
 
+            if torch.isnan(loss) or torch.isinf(loss):
+                continue
+
             optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(net.parameters(), max_norm=1.0)
             optimizer.step()
+            scheduler.step()
             total_loss += loss.item()
 
         return total_loss / sgd_steps

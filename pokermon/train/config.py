@@ -40,7 +40,7 @@ class TrainConfig:
 
     # Pruning
     prune_after: int = 100
-    prune_threshold: float = -3e8
+    prune_threshold: float = -300.0
 
     # Checkpointing
     checkpoint_dir: str = "checkpoints"
