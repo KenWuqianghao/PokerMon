@@ -41,9 +41,10 @@ volume = modal.Volume.from_name("pokermon-checkpoints", create_if_missing=True)
     volumes={"/vol": volume},
     cpu=1,
     memory=2048,
-    allow_concurrent_inputs=100,
+
     timeout=300,
 )
+@modal.concurrent(max_inputs=100)
 @modal.asgi_app()
 def serve():
     import shutil
