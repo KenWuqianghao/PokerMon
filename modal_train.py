@@ -1,9 +1,13 @@
-"""Train Deep CFR on Modal with GPU and persistent checkpoints.
+"""Train Deep CFR on Modal with persistent checkpoints.
+
+CPU-only: MCCFR traversals do single-sample inference where CUDA kernel
+launch overhead makes GPU slower than CPU. The model (4-layer 512-dim MLP)
+is small enough that CPU SGD with batch 2048 is fast too.
 
 Resumes from the latest checkpoint on the volume after preemption.
 
 Usage:
-    modal run --detach modal_train.py              # Train on A10G GPU (detached)
+    modal run --detach modal_train.py              # Train (detached)
     modal run modal_train.py --download            # Download smoke_test.pt locally
 """
 
@@ -11,12 +15,16 @@ import modal
 
 app = modal.App("pokermon-train")
 
+COMMIT = "2eda6b0"
+
 image = (
     modal.Image.debian_slim(python_version="3.11")
-    .pip_install("torch", "numpy", "treys", "pyyaml", "tensorboard", "tqdm")
+    .run_commands("pip install torch --index-url https://download.pytorch.org/whl/cpu")
+    .pip_install("numpy", "treys", "pyyaml", "tensorboard", "tqdm")
     .run_commands(
         "apt-get update && apt-get install -y git",
-        "git clone https://github.com/KenWuqianghao/PokerMon.git /root/PokerMon",
+        f"git clone https://github.com/KenWuqianghao/PokerMon.git /root/PokerMon"
+        f" && cd /root/PokerMon && git checkout {COMMIT}",
         "pip install -e /root/PokerMon",
     )
 )
@@ -36,7 +44,7 @@ def _try_load_checkpoint(checkpoints, advantage_nets, strategy_net):
     return None, None
 
 
-@app.function(image=image, gpu="A10G", timeout=24 * 3600, volumes={"/vol": volume})
+@app.function(image=image, cpu=8, memory=32768, timeout=24 * 3600, volumes={"/vol": volume})
 def train():
     from pathlib import Path
 
@@ -49,14 +57,14 @@ def train():
         num_players=2,
         hidden_dim=512,
         num_layers=4,
-        device="cuda",
+        device="cpu",
         checkpoint_dir="/vol/checkpoints/nlhe_hu",
         log_dir="/vol/runs/nlhe_hu",
-        num_iterations=100,
-        traversals_per_iter=300,
+        num_iterations=500,
+        traversals_per_iter=500,
         advantage_sgd_steps=2000,
         strategy_sgd_steps=2000,
-        checkpoint_every=5,
+        checkpoint_every=10,
     )
 
     trainer = Trainer(config)
