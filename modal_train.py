@@ -87,9 +87,18 @@ def train():
         print(f"Training already complete ({start_iter - 1}/{config.num_iterations})")
     else:
         print(f"Starting from iteration {start_iter}/{config.num_iterations}")
+        def on_checkpoint(t: int) -> None:
+            # Update smoke_test.pt so the server picks up the latest model live
+            checkpoints = sorted(Path(config.checkpoint_dir).glob("checkpoint_*.pt"))
+            if checkpoints:
+                import torch as _torch
+                ckpt = _torch.load(checkpoints[-1], map_location="cpu", weights_only=False)
+                _torch.save(ckpt, "/vol/smoke_test.pt")
+            volume.commit()
+
         trainer.train(
             start_iteration=start_iter,
-            on_checkpoint=lambda t: volume.commit(),
+            on_checkpoint=on_checkpoint,
         )
 
     # Save a portable CPU copy for download

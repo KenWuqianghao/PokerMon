@@ -138,7 +138,7 @@ def serialize_state(state, game_id: str, hand_num: int) -> dict:
 
     # AI cards hidden unless terminal
     ai_cards = None
-    if state.is_terminal and not ai_player.folded and len(state.community_cards) >= 5:
+    if state.is_terminal and not ai_player.folded:
         ai_cards = [card_to_str(c) for c in ai_player.hole_cards]
 
     legal_actions = None
